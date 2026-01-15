@@ -97,6 +97,8 @@ for tool in grub-mkconfig systemctl; do
     fi
 done
 
+cp README.md build/README.md
+
 # Process template files
 echo ""
 echo "Processing template files..."
