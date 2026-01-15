@@ -1,27 +1,28 @@
 #!/bin/bash
 # Detect maintenance mode from kernel cmdline
 
-set -e
+set -e; set -o pipefail
 
 MAINT_FILE="/var/lib/overlight/maintenance"
 
+CMDLINE=$(</proc/cmdline)
+
 # Clean up old file on normal boot (no maintenance param)
 MAINT_FOUND=0
-for param in $(cat /proc/cmdline); do
+for param in $CMDLINE; do
     if [[ "$param" == maintenance=* ]]; then
         MAINT_FOUND=1
         break
     fi
 done
 
-if [ "$MAINT_FOUND" -eq 0 ]; then
-    # Normal boot - remove maintenance file if exists
+if [[ "$MAINT_FOUND" -eq 0 ]]; then
     rm -f "$MAINT_FILE" 2>/dev/null || true
     exit 0
 fi
 
 # Parse maintenance level
-for param in $(cat /proc/cmdline); do
+for param in $CMDLINE; do
     case "$param" in
         maintenance=1)
             echo "1" > "$MAINT_FILE"
@@ -34,7 +35,6 @@ for param in $(cat /proc/cmdline); do
             exit 0
             ;;
         maintenance)
-            # Default to level 1 if no number specified
             echo "1" > "$MAINT_FILE"
             echo "Maintenance level 1 set (default)"
             exit 0

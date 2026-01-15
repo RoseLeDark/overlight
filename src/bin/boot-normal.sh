@@ -1,7 +1,8 @@
 #!/bin/bash
 # /usr/lib/overlight/bin/boot-normal.sh
 
-set -e
+set -e; set -o pipefail
+
 . /etc/overlight.cfg
 
 # Read selected OS
@@ -23,7 +24,7 @@ WORK_DIR="$SHARED_PATH/$OS_NAME/work"
 
 # Validate
 ROOTFS_PATH="$OS_DIR/$ROOTFS"
-[ ! -f "ROOTFS_PATH" ] && { echo "Rootfs not found: $ROOTFS_PATH"; exit 1; }
+[ ! -f "$ROOTFS_PATH" ] && { echo "Rootfs not found: $ROOTFS_PATH"; exit 1; }
 
 # SHA256 verification (optional)
 if [ -n "$ROOTFS_SUM" ]; then
@@ -68,4 +69,4 @@ mount --move /dev "$NEWROOT/dev"
 mount --move /run "$NEWROOT/run"
 
 # Switch to new root
-exec switch_root "$NEWROOT" $OVERL_CMDLINE
+exec switch_root "$NEWROOT" "$OVERL_CMDLINE"
