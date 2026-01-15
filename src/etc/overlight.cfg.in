@@ -2,7 +2,7 @@
 
 # Paths
 OVERLAY_ROOT="%GUEST_DIR%"
-SHARED_PATH="/mnt/overlight"
+SHARED_PATH="/var/lib/overlight"
 HOME_PARTITION="/dev/sda2"
 SQUADFSLOOP="/mnt/loop"
 LOG_LEVEL="info"
