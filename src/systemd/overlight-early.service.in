@@ -1,0 +1,16 @@
+[Unit]
+Description=OverLight Maintenance Detection
+DefaultDependencies=no
+Before=sysinit.target
+Before=overlight.service
+ConditionPathExists=|/proc/cmdline
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+StandardOutput=journal+console
+ExecStart=/usr/lib/overlight/bin/overlight-ismaintenance.sh
+TimeoutSec=5
+
+[Install]
+WantedBy=sysinit.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=OverLight Overlay Boot System
+DefaultDependencies=no
+After=local-fs.target overlight-maintenanced.service
+Before=basic.target
+ConditionPathExists=!/var/lib/overlight/maintenance
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/overlightcfg.sh boot
+ExecStop=/usr/bin/overlightcfg.sh shutdown
+TimeoutSec=30
+
+[Install]
+WantedBy=sysinit.target

@@ -1,0 +1,124 @@
+#!/bin/bash
+# OverLight Installation Script
+
+set -e
+
+echo "Installing OverLight..."
+
+# ============================================================================
+# Configuration (replaced by configure script)
+# ============================================================================
+PREFIX="%PREFIX%"
+BIN_DIR="%BIN_DIR%"
+LIB_DIR="%LIB_DIR%"
+ETC_DIR="%ETC_DIR%"
+SYSTEMD_DIR="%SYSTEMD_DIR%"
+GUEST_DIR="%GUEST_DIR%"
+
+# ============================================================================
+# Create directory structure
+# ============================================================================
+echo "Creating directory structure..."
+mkdir -p "$LIB_DIR/bin"
+mkdir -p "$ETC_DIR"
+mkdir -p "/var/lib/overlight"
+mkdir -p "$GUEST_DIR"
+
+# ============================================================================
+# Install main script
+# ============================================================================
+echo "Installing main script..."
+cp overlightcfg.sh "$BIN_DIR/"
+chmod +x "$BIN_DIR/overlightcfg.sh"
+
+# ============================================================================
+# Install bin scripts
+# ============================================================================
+echo "Installing binary scripts..."
+cp bin/* "$LIB_DIR/bin/"
+chmod +x "$LIB_DIR/bin/"*
+
+# ============================================================================
+# Install config
+# ============================================================================
+echo "Installing configuration..."
+cp etc/* "$ETC_DIR/"
+
+# ============================================================================
+# Install systemd service
+# ============================================================================
+echo "Installing systemd service..."
+cp systemd/overlight.service "$SYSTEMD_DIR/"
+systemctl daemon-reload
+systemctl enable overlight.service
+
+# ============================================================================
+# Create example OS structure
+# ============================================================================
+echo "Creating example OS structure..."
+mkdir -p "$GUEST_DIR/archlinux"
+echo archlinux > "$GUEST_DIR/autoload";
+
+cat > "$GUEST_DIR/archlinux/config.cfg" <<EOF
+ROOTFS=rootfs.squashfs
+UPPER_DIR=/home/user/upper
+WORK_DIR=/home/user/work
+HOME_PARTITION=/dev/sda3
+OVERL_CMDLINE=/sbin/Init
+EOF
+
+# ============================================================================
+# Copy README.md
+# ============================================================================
+mkdir -p $PREFIX/share/doc/overlight/
+cp ../README.md $PREFIX/share/doc/overlight/README.md
+
+# ============================================================================
+# Installation complete
+# ============================================================================
+echo ""
+echo "✅ OverLight installation complete!"
+echo ""
+echo "📁 Installation summary:"
+echo "  Main script:        $BIN_DIR/overlightcfg.sh"
+echo "  Library scripts:    $LIB_DIR/bin/"
+echo "  Configuration:      $ETC_DIR/"
+echo "  Systemd service:    $SYSTEMD_DIR/overlight.service"
+echo "  Maintenance detect: $SYSTEMD_DIR/overlight-maintenanced.service"
+echo "  Guest OS directory: $GUEST_DIR"
+echo ""
+echo "⚠️  IMPORTANT: Manual configuration required!"
+echo ""
+echo "1. Add to GRUB configuration (/etc/grub.d/40_custom or similar):"
+echo "   -----------------------------------------"
+echo "   menuentry \"OverLight - Normal Boot\" {"
+echo "       linux /vmlinuz-linux root=/dev/sda2 rw quiet"
+echo "       initrd /initramfs-linux.img"
+echo "   }"
+echo "   menuentry \"OverLight - Maintenance 1\" {"
+echo "       linux /vmlinuz-linux root=/dev/sda2 rw maintenance=1"
+echo "       initrd /initramfs-linux.img"
+echo "   }"
+echo "   menuentry \"OverLight - Maintenance 2\" {"
+echo "       linux /vmlinuz-linux root=/dev/sda2 rw maintenance=2"
+echo "       initrd /initramfs-linux.img"
+echo "   }"
+echo "   -----------------------------------------"
+echo "   Then run: sudo grub-mkconfig -o /boot/grub/grub.cfg"
+echo ""
+echo "2. Place your OS image at:"
+echo "   $GUEST_DIR/archlinux/rootfs.squashfs"
+echo ""
+echo "3. Maintenance modes (via GRUB boot parameters):"
+echo "   - maintenance=1 : Stage 0 shell only"
+echo "   - maintenance=2 : Overlay OS with Stage 0 at /mnt/stage0"
+echo ""
+echo "4. Enable the service (optional):"
+echo "   sudo systemctl enable overlight-maintenanced.service"
+echo "   sudo systemctl enable overlight.service"
+echo ""
+echo "🔧 Quick test:"
+echo "   sudo overlightcfg.sh status"
+echo "   sudo overlightcfg.sh list-os"
+echo ""
+echo "📚 See documentation in $PREFIX/share/doc/overlight/"

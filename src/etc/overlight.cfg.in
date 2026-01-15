@@ -1,0 +1,8 @@
+# OverLight Main Configuration
+
+# Paths
+OVERLAY_ROOT="%GUEST_DIR%"
+SHARED_PATH="/mnt/overlight"
+HOME_PARTITION="/dev/sda2"
+SQUADFSLOOP="/mnt/loop"
+LOG_LEVEL="info"

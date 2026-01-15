@@ -1,0 +1,192 @@
+#!/bin/bash
+# configure - OverLight Build Configuration Script
+
+set -e
+
+# Default values
+PREFIX="/usr/local"
+GUEST_DIR="/overlay"
+BIN_DIR="${PREFIX}/bin"
+SBIN_DIR="${PREFIX}/sbin"
+LIB_DIR="${PREFIX}/lib/overlight"
+ETC_DIR="/etc/overlight"
+SYSTEMD_DIR="/etc/systemd/system"
+GRUB_DIR="/etc/grub.d"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --prefix=*)
+            PREFIX="${1#*=}"
+            BIN_DIR="${PREFIX}/bin"
+            SBIN_DIR="${PREFIX}/sbin"
+            LIB_DIR="${PREFIX}/lib/overlight"
+            shift
+            ;;
+        --prefix)
+            PREFIX="$2"
+            BIN_DIR="${PREFIX}/bin"
+            SBIN_DIR="${PREFIX}/sbin"
+            LIB_DIR="${PREFIX}/lib/overlight"
+            shift 2
+            ;;
+        --guest=*)
+            GUEST_DIR="${1#*=}"
+            shift
+            ;;
+        --guest)
+            GUEST_DIR="$2"
+            shift 2
+            ;;
+        --help|-h)
+            cat << EOF
+OverLight Configuration Script
+
+Usage: ./configure [options]
+
+Options:
+  --prefix=PREFIX        Install architecture-independent files in PREFIX
+                         [/usr/local]
+  --guest=GUEST_DIR      Directory for guest OS images [/overlay]
+  --help                 Display this help and exit
+
+Common prefixes:
+  /usr/local    - Local software (default)
+  /usr          - System-wide software
+  /opt/overlight - Self-contained installation
+
+Example:
+  ./configure --prefix=/usr --guest=/overlay
+EOF
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Display configuration
+echo "=== OverLight Configuration ==="
+echo "Installation prefix: $PREFIX"
+echo "Binaries directory:  $BIN_DIR"
+echo "Library directory:   $LIB_DIR"
+echo "Guest OS directory:  $GUEST_DIR"
+echo ""
+
+# Check for required tools
+echo "Checking required tools..."
+for tool in install sed mkdir chmod; do
+    if ! command -v $tool >/dev/null 2>&1; then
+        echo "ERROR: Required tool '$tool' not found"
+        exit 1
+    fi
+    echo "  ✓ $tool"
+done
+
+# Check for optional tools
+echo ""
+echo "Checking optional tools..."
+for tool in grub-mkconfig systemctl; do
+    if command -v $tool >/dev/null 2>&1; then
+        echo "  ✓ $tool"
+    else
+        echo "  ⚠ $tool (not found, some features may not work)"
+    fi
+done
+
+# Process template files
+echo ""
+echo "Processing template files..."
+
+# Create output directory
+mkdir -p build
+
+# Process main script
+sed \
+    -e "s|%PREFIX%|$PREFIX|g" \
+    -e "s|%LIB_DIR%|$LIB_DIR|g" \
+    -e "s|%GUEST_DIR%|$GUEST_DIR|g" \
+    src/overlightcfg.sh.in > build/overlightcfg.sh
+
+chmod +x build/overlightcfg.sh
+
+# Process install script
+sed \
+    -e "s|%PREFIX%|$PREFIX|g" \
+    -e "s|%BIN_DIR%|$BIN_DIR|g" \
+    -e "s|%SBIN_DIR%|$SBIN_DIR|g" \
+    -e "s|%LIB_DIR%|$LIB_DIR|g" \
+    -e "s|%ETC_DIR%|$ETC_DIR|g" \
+    -e "s|%SYSTEMD_DIR%|$SYSTEMD_DIR|g" \
+    -e "s|%GRUB_DIR%|$GRUB_DIR|g" \
+    -e "s|%GUEST_DIR%|$GUEST_DIR|g" \
+    src/install-overlight.sh.in > build/install-overlight.sh
+
+chmod +x build/install-overlight.sh
+
+# Process configuration file
+mkdir -p build/etc
+sed \
+    -e "s|%GUEST_DIR%|$GUEST_DIR|g" \
+    src/etc/overlight.cfg.in > build/etc/overlight.cfg
+
+# Process GRUB configuration
+sed \
+    -e "s|%GUEST_DIR%|$GUEST_DIR|g" \
+    src/etc/05_overlight.in > build/etc/05_overlight
+
+# Process systemd service
+mkdir -p build/systemd
+sed \
+    -e "s|%BIN_DIR%|$BIN_DIR|g" \
+    src/systemd/overlight.service.in > build/systemd/overlight.service
+
+# Copy binary scripts
+mkdir -p build/bin
+cp src/bin/*.sh build/bin/
+chmod +x build/bin/*.sh
+
+# Copy examples
+mkdir -p build/examples
+cp src/examples/* build/examples/
+
+# Create Makefile from template
+sed \
+    -e "s|%PREFIX%|$PREFIX|g" \
+    -e "s|%BIN_DIR%|$BIN_DIR|g" \
+    -e "s|%SBIN_DIR%|$SBIN_DIR|g" \
+    -e "s|%LIB_DIR%|$LIB_DIR|g" \
+    -e "s|%ETC_DIR%|$ETC_DIR|g" \
+    -e "s|%SYSTEMD_DIR%|$SYSTEMD_DIR|g" \
+    -e "s|%GRUB_DIR%|$GRUB_DIR|g" \
+    -e "s|%GUEST_DIR%|$GUEST_DIR|g" \
+    Makefile.in > build/Makefile
+
+echo ""
+echo "Configuration complete!"
+echo ""
+echo "Build directory created: build/"
+echo ""
+echo "To install:"
+echo "  cd build && sudo ./install-overlight.sh"
+echo ""
+echo "Or use Makefile:"
+echo "  cd build && sudo make install"
+echo ""
+echo "Configuration summary written to: build/config.summary"
+cat > build/config.summary << EOF
+OverLight Installation Summary
+==============================
+Installation prefix: $PREFIX
+Binaries:            $BIN_DIR
+Libraries:           $LIB_DIR
+Configuration:       $ETC_DIR
+Guest OS directory:  $GUEST_DIR
+Systemd service:     $SYSTEMD_DIR/overlight.service
+GRUB config:         $GRUB_DIR/05_overlight
+
+Generated: $(date)
+EOF

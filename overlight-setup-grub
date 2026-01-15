@@ -1,0 +1,62 @@
+#!/bin/bash
+# /usr/local/bin/overlight-setup-grub
+
+set -e
+
+echo "Setting up OverLight GRUB configuration..."
+
+# Backup existing config
+cp /etc/default/grub /etc/default/grub.backup.$(date +%Y%m%d)
+
+# Add OverLight GRUB script
+cat > /etc/grub.d/05_overlight << 'EOF'
+#!/bin/sh
+# GRUB2 Configuration for OverLight
+
+exec tail -n +3 $0
+
+# Get root device from /etc/default/grub or detect
+. /etc/default/grub
+
+if [ -z "$OVERLAY_ROOT" ]; then
+    # Auto-detect: assume first partition after stage0
+    OVERLAY_ROOT="UUID=$(blkid -s UUID -o value /dev/sda2)"
+fi
+
+if [ -z "$STAGE0_ROOT" ]; then
+    STAGE0_ROOT="UUID=$(blkid -s UUID -o value /dev/sda1)"
+fi
+
+cat << MENU
+menuentry "OverLight - Normal Boot" --class overlight --id overlight-normal {
+    linux /vmlinuz-linux root=$OVERLAY_ROOT rw quiet splash
+    initrd /initramfs-linux.img
+}
+
+menuentry "OverLight - Maintenance Mode 1 (Stage 0 Shell)" --class overlight --id overlight-maint1 {
+    linux /vmlinuz-linux root=$OVERLAY_ROOT rw maintenance=1
+    initrd /initramfs-linux.img
+}
+
+menuentry "OverLight - Maintenance Mode 2 (With Stage 0 Access)" --class overlight --id overlight-maint2 {
+    linux /vmlinuz-linux root=$OVERLAY_ROOT rw maintenance=2 quiet splash
+    initrd /initramfs-linux.img
+}
+
+menuentry "Stage 0 Only (Debug)" --class arch --id stage0-only {
+    linux /vmlinuz-linux root=$STAGE0_ROOT rw
+    initrd /initramfs-linux.img
+}
+MENU
+EOF
+
+chmod +x /etc/grub.d/05_overlight
+
+# Update GRUB config
+echo "OVERLAY_ROOT=$(findmnt -n -o SOURCE /overlay 2>/dev/null || echo "/dev/sda2")" >> /etc/default/grub
+echo "STAGE0_ROOT=$(findmnt -n -o SOURCE / 2>/dev/null)" >> /etc/default/grub
+
+grub-mkconfig -o /boot/grub/grub.cfg
+
+echo "GRUB configuration updated!"
+echo "Run 'grub-mkconfig -o /boot/grub/grub.cfg' if you change partitions"

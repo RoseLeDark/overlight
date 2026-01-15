@@ -1,0 +1,308 @@
+#!/bin/bash
+# /%PREFIX%/bin/overlightcfg.sh - Main OverLight Control Script
+
+set -e
+
+VERSION="1.0"
+CONFIG_DIR="/etc/"
+BIN_DIR="%LIB_DIR%/bin"
+STATE_DIR="/var/lib/overlight"
+LOG_FILE="/var/log/overlight.log"
+GUEST_DIR="%GUEST_DIR%"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+die() {
+    log "ERROR: $1"
+    exit 1
+}
+
+show_help() {
+    cat << EOF
+OverLight Control Script v$VERSION
+
+Usage: overlightcfg.sh <command> [options]
+
+Commands:
+  boot        - Boot into overlay system
+  shutdown    - Clean shutdown overlay
+  status      - Show current status
+  list-os     - List available OS images
+  switch-os   - Switch to different OS
+  verify      - verify available OS image. 
+
+Options
+  --all       - verify --all verify all gues OS in %GUEST_DIR%
+
+Examples:
+  overlightcfg.sh boot
+  overlightcfg.sh switch-os archlinux
+EOF
+}
+
+# Load configuration
+load_config() {
+    [ -f "$CONFIG_DIR/overlight.cfg" ] && . "$CONFIG_DIR/overlight.cfg"
+    
+    # Defaults
+    OVERLAY_ROOT="${OVERLAY_ROOT:-%GUEST_DIR%}"
+    STAGE0_ROOT="${STAGE0_ROOT:-/}"
+    HOME_PARTITION="${HOME_PARTITION:-/dev/sda2}"
+}
+
+# Get maintenance level
+get_maintenance_level() {
+    if [ -f "$STATE_DIR/maintenance" ]; then
+        cat "$STATE_DIR/maintenance"
+    else
+        echo "0"
+    fi
+}
+
+# Command: boot
+cmd_boot() {
+    log "Starting OverLight boot process"
+   
+    local maint_level=$(get_maintenance_level)
+    
+    case "$maint_level" in
+        0)
+            log "Normal boot requested"
+            exec "$BIN_DIR/boot-normal.sh"
+            ;;
+        1)
+            log "Maintenance Admin Mode - Stage 0 shell only"
+            echo "OverLight Maintenance Mode 1 - Stage 0 Shell"
+            ;;
+        2)
+            log "Maintenance Soft Mode - Overlay with Stage 0 access"
+            exec "$BIN_DIR/boot-maintenance2.sh"
+            ;;
+        *)
+            die "Invalid maintenance level: $maint_level"
+            ;;
+    esac
+}
+
+# Command: shutdown
+cmd_shutdown() {
+    log "Shutting down OverLight"
+    exec "$BIN_DIR/shutdown-clean.sh"
+}
+
+# Command: status
+cmd_status() {
+    load_config
+    
+    echo "=== OverLight Status ==="
+    echo "Version: $VERSION"
+    echo "Maintenance Level: $(get_maintenance_level)"
+    echo ""
+    
+    # Mount status
+    echo "Mount Status:"
+    mount | grep -E "(overlay|squashfs|$OVERLAY_ROOT)" || echo "No overlay mounts found"
+    echo ""
+    
+    # OS selection
+    if [ -f "$OVERLAY_ROOT/autoload" ]; then
+        CURRENT_OS=$(cat "$OVERLAY_ROOT/autoload")
+        echo "Current OS: $CURRENT_OS"
+        
+        if [ -f "$OVERLAY_ROOT/$CURRENT_OS/config.cfg" ]; then
+            echo "Config: $OVERLAY_ROOT/$CURRENT_OS/config.cfg"
+        fi
+    else
+        echo "No autoload found"
+    fi
+    echo ""
+    
+    # Available OS
+    echo "Available OS Images:"
+    for os_dir in "$OVERLAY_ROOT"/*/; do
+        if [ -f "$os_dir/rootfs.squashfs" ]; then
+            os_name=$(basename "$os_dir")
+            size=$(du -h "$os_dir/rootfs.squashfs" | cut -f1)
+            echo "  - $os_name ($size)"
+        fi
+    done
+}
+
+# Command: list-os
+cmd_list_os() {
+    load_config
+    
+    echo "Available OverLight OS Images:"
+    echo ""
+    
+    for os_dir in "$OVERLAY_ROOT"/*/; do
+        if [ -d "$os_dir" ]; then
+             os_name=$(basename "$os_dir")
+            
+            # Default rootfs name
+            ROOTFS="rootfs.squashfs"
+
+            # Read only ROOTFS from config if exists
+            if [ -f "$os_dir/config.cfg" ]; then
+                # Extract just ROOTFS= line
+                ROOTFS=$(sed -n 's/^ROOTFS=//p;q' "$os_dir/config.cfg")
+            fi
+
+            
+            if [ -f "$os_dir/$ROOTFS" ]; then
+                size=$(du -h "$os_dir/$ROOTFS" | cut -f1)
+                modified=$(stat -c %y "$os_dir/$ROOTFS" | cut -d' ' -f1)
+                
+                
+                # Show config info
+                if [ -f "$os_dir/config.cfg" ]; then
+                    echo "  Config: $(basename "$os_dir/config.cfg")"
+                    
+                    # Show init if different from default
+                    init_line=$(grep -E '^OVERL_CMDLINE=' "$os_dir/config.cfg" | head -1)
+                    if [ -n "$init_line" ]; then
+                        init_cmd="${init_line#OVERL_CMDLINE=}"
+                    fi
+                fi
+                echo "[OK] $os_name: Rootfs: $ROOTFS $size $modified - $init_cmd"
+
+                else
+                echo "[ERROR] $os_name: Missing: $ROOTFS"
+            fi
+        fi
+    done
+}
+
+# Command: switch-os
+cmd_switch_os() {
+    local os_name="$1"
+    
+    if [ -z "$os_name" ]; then
+        echo "Usage: overlightcfg.sh switch-os <osname>"
+        echo ""
+        cmd_list_os
+        exit 1
+    fi
+    
+    load_config
+    
+    if [ ! -d "$OVERLAY_ROOT/$os_name" ]; then
+        die "OS '$os_name' not found in $OVERLAY_ROOT"
+    fi
+    
+    if [ ! -f "$OVERLAY_ROOT/$os_name/rootfs.squashfs" ]; then
+        die "No rootfs.squashfs found for $os_name"
+    fi
+    
+    echo "$os_name" > "$OVERLAY_ROOT/autoload"
+    log "Switched to OS: $os_name"
+    echo "Switched to OS: $os_name"
+    echo "Reboot to apply changes."
+}
+
+# Command: verify-os
+cmd_verify() {
+    local os_name="$1"
+    
+    if [ -z "$os_name" ]; then
+        echo "Usage: overlightcfg.sh verify <osname>"
+        echo "Or: overlightcfg.sh verify --all"
+        exit 1
+    fi
+    
+    load_config
+    
+    if [ "$os_name" = "--all" ]; then
+        # Verify all OS
+        for os_dir in "$OVERLAY_ROOT"/*/; do
+            [ ! -d "$os_dir" ] && continue
+            os=$(basename "$os_dir")
+            echo "Verifying $os..."
+            verify_single "$os"
+            echo ""
+        done
+    else
+        verify_single "$os_name"
+    fi
+}
+
+verify_single() {
+    local os_name="$1"
+    local os_dir="$OVERLAY_ROOT/$os_name"
+    
+    if [ ! -d "$os_dir" ]; then
+        echo "Error: OS '$os_name' not found"
+        return 1
+    fi
+    
+    # Load config
+    ROOTFS=$(sed -n 's/^ROOTFS=//p;q' "$os_dir/config.cfg")
+    
+    if [ ! -f "$os_dir/$ROOTFS" ]; then
+        echo "[ERROR] $os_name: Rootfs missing ("$os_dir/$ROOTFS")"
+        return 1
+    fi
+    
+    ROOTFS_SUM=$(sed -n 's/^ROOTFS_SUM=//p;q' "$os_dir/config.cfg")
+
+    if [ -z "$ROOTFS_SUM" ]; then
+        echo "[ERROR] $os_name: No SHA256 checksum configured"
+        return 1
+    fi
+    
+    # Calculate and compare
+    local calculated_sum=$(sha256sum "$rootfs_path" | cut -d' ' -f1)
+    
+    if [ "$calculated_sum" = "$ROOTFS_SUM" ]; then
+        echo "[OK] $os_name: SHA256 verified"
+        return 0
+    else
+        echo "[ERROR] $os_name: SHA256 mismatch! $ROOTFS_SUM $calculated_sum"
+        return 1
+    fi
+}
+
+# Main dispatcher
+main() {
+    local command="$1"
+    local option="$2"
+    
+    mkdir -p "$CONFIG_DIR" "$STATE_DIR"
+    set_maintenance_level
+    
+    case "$command" in
+        boot)
+            cmd_boot
+            ;;
+        shutdown)
+            cmd_shutdown
+            ;;
+        status)
+            cmd_status
+            ;;
+        list-os)
+            cmd_list_os
+            ;;
+        verify)
+            cmd_verify "$option"
+            ;;
+        switch-os)
+            cmd_switch_os "$option"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            echo "Unknown command: $command"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
+
+
+
