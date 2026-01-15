@@ -29,7 +29,7 @@ For optimal performance and organization, I recommend this partition scheme:
 ```text
 /dev/sdX1:  Arch Linux Stage 0          [20-30GB]    ext4
 /dev/sdX2:  Overlay OS Home             [Rest]       ext4/btrfs
-/dev/sda3: OverLight Work/Upper         [20GB]       ext4  → /mnt/overlight in Stage 0 [optional]
+/dev/sda3: OverLight Work/Upper         [20GB]       ext4  → /var/lib/overlight in Stage 0 [optional]
 ```
 
 #### FStab 
@@ -38,7 +38,7 @@ For optimal performance and organization, I recommend this partition scheme:
 /etc/fstab in Stage 0
 # ... your FSTAB
 # add this:
-/dev/sda3   /mnt/overlight     ext4        defaults
+/dev/sda3  /var/lib/overlight     ext4        defaults
 ```
 
 
@@ -46,7 +46,7 @@ For optimal performance and organization, I recommend this partition scheme:
 
 ### Directory Structure:
 ```
-/overlay/                  # Guest OS directory (configurable)
+/var/lib/overlight/guest/                  # Guest OS directory (configurable)
 ├── autoload               # Single line: default OS name
 ├── archlinux/
 │   ├── rootfs.squashfs    # OS root filesystem
@@ -73,7 +73,7 @@ For optimal performance and organization, I recommend this partition scheme:
 ```bash
 git clone https://github.com/RoseLeDark/overlight.git
 cd overlight
-./configure --prefix=/usr --guest=/overlay
+./configure --prefix=/usr --guest=/var/lib/overlight/guest
 cd build
 sudo make install
 ```
@@ -81,13 +81,13 @@ sudo make install
 ### Configuration Options:
 ```bash
 # System-wide installation (recommended)
-./configure --prefix=/usr --guest=/overlay
+./configure --prefix=/usr --guest=/var/lib/overlight/guest
 
 # Local testing
 ./configure --prefix=$HOME/.local --guest=$HOME/overlay-test
 
 # Custom location
-./configure --prefix=/opt/overlight --guest=/mnt/overlay-os
+./configure --prefix=/opt/overlight --guest=/opt/overlight/guest
 ```
 
 ## ⚙️ Configuration
@@ -118,13 +118,13 @@ mkdir /tmp/arch-root
 sudo pacstrap -c /tmp/arch-root base base-devel 
 # See wiki for configuration without bootloader
 # Yout last step:
-sudo mksquashfs /tmp/arch-root /overlay/archlinux/rootfs.squashfs -comp xz
+sudo mksquashfs /tmp/arch-root /var/lib/overlight/guest/archlinux/rootfs.squashfs -comp xz
 
 # Edit autoload
 echo "archlinux" > /overlay/autoload
 
 
-# Create SHA256 Sum from /overlay/archlinux/rootfs.squashfs
+# Create SHA256 Sum from /var/lib/overlight/guest/archlinux/rootfs.squashfs
 sha256sum "/overlay/archlinux/rootfs.squashfs" 
 
 # Copy Sum from the terminal 
@@ -160,7 +160,7 @@ sudo overlightcfg.sh shutdown
 sudo overlightcfg.sh verify --all
 
 # verify a given guest OS
-sudo overlightcfg.sh verify archlinux # orother name
+sudo overlightcfg.sh verify archlinux # or other name
 ```
 
 ### Boot Modes:
@@ -177,8 +177,7 @@ sudo overlightcfg.sh verify archlinux # orother name
 # From GRUB: Select "Maintenance 1"
 # You'll land in Stage 0 bash where you can:
 ls /overlay/                      # Check OS images
-cp new-image.squashfs /overlay/ubuntu/  # Install new OS
-rm /var/lib/overlight/maintenance # Exit maintenance mode
+cp new-image.squashfs /var/lib/overlight/guest/ubuntu/  # Install new OS
 reboot
 ```
 
@@ -207,7 +206,7 @@ reboot
 2. **Cannot mount squashfs**
    ```bash
    # Check if file exists and is valid
-   unsquashfs -s /overlay/archlinux/rootfs.squashfs
+   unsquashfs -s /var/lib/overlight/guest/archlinux/rootfs.squashfs
    ```
 
 3. **Maintenance mode not working**
@@ -240,22 +239,22 @@ ROOTFS=/overlay/newos/rootfs.squashfs
 ROOTFS_SUM=$(sha256sum "$ROOTFS" | awk '{print $1}')
 
 # 5. Create config
-echo "ROOTFS=$ROOTFS" > /overlay/newos/config.cfg
-echo "ROOTFS_SUM=\"$ROOTFS_SUM\"" >> /overlay/newos/config.cfg
-echo 'OVERL_CMDLINE=/sbin/Init' >> /overlay/newos/config.cfg
+echo "ROOTFS=$ROOTFS" > /var/lib/overlight/guest/newos/config.cfg
+echo "ROOTFS_SUM=\"$ROOTFS_SUM\"" >> /var/lib/overlight/guest/newos/config.cfg
+echo 'OVERL_CMDLINE=/sbin/Init' >> /var/lib/overlight/guest/newos/config.cfg
 ```
 
 ### Using debootstrap (Debian/Ubuntu):
 ```bash
 sudo debootstrap stable /tmp/debian-root http://deb.debian.org/debian
-sudo mksquashfs /tmp/debian-root /overlay/debian/rootfs.squashfs
+sudo mksquashfs /tmp/debian-root /var/lib/overlight/guest/debian/rootfs.squashfs
 
 ROOTFS=/overlay/debian/rootfs.squashfs
 ROOTFS_SUM=$(sha256sum "$ROOTFS" | awk '{print $1}')
 
 echo "ROOTFS=$ROOTFS" > /overlay/debian/config.cfg
-echo "ROOTFS_SUM=\"$ROOTFS_SUM\"" >> /overlay/debian/config.cfg
-echo 'OVERL_CMDLINE=/sbin/Init' >> /overlay/debian/config.cfg
+echo "ROOTFS_SUM=\"$ROOTFS_SUM\"" >> /var/lib/overlight/guest/debian/config.cfg
+echo 'OVERL_CMDLINE=/sbin/Init' >> /var/lib/overlight/guest/debian/config.cfg
 ```
 
 ## 📁 Project Structure
@@ -314,8 +313,6 @@ OverLight is licensed under the **GNU General Public License v3.0**.
 - **Recovery Systems**: Built-in maintenance modes
 
 ### Not For:
-- High-security isolation (use proper containers)
-- Cloud deployments (use orchestration tools)
 - Windows/macOS hosts (Linux kernel required)
 
 ## 🔗 Related Projects
