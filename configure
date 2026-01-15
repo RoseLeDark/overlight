@@ -5,7 +5,7 @@ set -e
 
 # Default values
 PREFIX="/usr/local"
-GUEST_DIR="/overlay"
+GUEST_DIR="/var/lib/overlight/guest"
 BIN_DIR="${PREFIX}/bin"
 SBIN_DIR="${PREFIX}/sbin"
 LIB_DIR="${PREFIX}/lib/overlight"
@@ -56,7 +56,7 @@ Common prefixes:
   /opt/overlight - Self-contained installation
 
 Example:
-  ./configure --prefix=/usr --guest=/overlay
+  ./configure --prefix=/usr --guest=/var/lib/overlight/guest
 EOF
             exit 0
             ;;
