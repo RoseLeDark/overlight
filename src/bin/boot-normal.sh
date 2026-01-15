@@ -14,7 +14,7 @@ OS_DIR="$OVERLAY_ROOT/$OS_NAME"
 
 # Defaults
 ROOTFS="${ROOTFS:-rootfs.squashfs}"
-SHARED_PATH="${SHARED_PATH:-/mnt/overlight}"
+SHARED_PATH="${SHARED_PATH:-/var/lib/overlight}"
 NEWROOT="${NEWROOT:-/newroot}"
 OVERL_CMDLINE="${OVERL_CMDLINE:-/sbin/init}"
 SQUADFSLOOP="${SQUADFSLOOP:-/mnt/loop}"
