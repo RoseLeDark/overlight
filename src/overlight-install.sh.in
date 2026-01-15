@@ -58,9 +58,9 @@ systemctl enable overlight.service
 # Create example OS structure
 # ============================================================================
 echo "Creating example OS structure..."
-mkdir -p "$GUEST_DIR/"
-cp examples/autoload  "$GUEST_DIR/autoload";
-cp -r examples/LINUX $GUEST_DIR/archlinux 
+mkdir -p "$GUEST_DIR/LINUX"
+cp examples/autoload  "$GUEST_DIR/autoload"
+cp examples/LINUX/* "$GUEST_DIR/LINUX/" 
 
 
 # ============================================================================
@@ -73,7 +73,7 @@ cp ../README.md $PREFIX/share/doc/overlight/README.md
 # Installation complete
 # ============================================================================
 echo ""
-echo "✅ OverLight installation complete!"
+echo " OverLight installation complete!"
 echo ""
 echo " Installation summary:"
 echo "  Main script:        $BIN_DIR/overlightcfg.sh"
@@ -96,7 +96,7 @@ echo "4. Enable the service (optional):"
 echo "   sudo systemctl enable overlight-maintenanced.service"
 echo "   sudo systemctl enable overlight.service"
 echo ""
-echo "🔧 Quick test:"
+echo " Quick test:"
 echo "   sudo overlightcfg.sh status"
 echo "   sudo overlightcfg.sh list-os"
 echo ""
