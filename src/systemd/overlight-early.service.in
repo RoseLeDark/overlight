@@ -1,8 +1,7 @@
 [Unit]
 Description=OverLight Maintenance Detection
 DefaultDependencies=no
-Before=sysinit.target
-Before=overlight.service
+Before=sysinit.target overlight.service
 ConditionPathExists=|/proc/cmdline
 
 [Service]

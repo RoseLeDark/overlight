@@ -1,9 +1,9 @@
 [Unit]
 Description=OverLight Overlay Boot System
 DefaultDependencies=no
-After=local-fs.target overlight-maintenanced.service
+After=local-fs.target overlight-early.service
 Before=basic.target
-ConditionPathExists=!/var/lib/overlight/maintenance
+ConditionPathExists=!/var/lib/overlight/NO_SYSTEMD
 
 [Service]
 Type=oneshot

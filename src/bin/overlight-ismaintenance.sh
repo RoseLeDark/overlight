@@ -4,6 +4,7 @@
 set -e; set -o pipefail
 
 MAINT_FILE="/var/lib/overlight/maintenance"
+NO_OVERLIGHT="/var/lib/overlight/NO_SYSTEMD"
 
 CMDLINE=$(</proc/cmdline)
 
@@ -21,11 +22,17 @@ if [[ "$MAINT_FOUND" -eq 0 ]]; then
     exit 0
 fi
 
+if [[ "$NO_OVERLIGHT" -eq 0 ]]; then
+    rm -f "$NO_OVERLIGHT" 2>/dev/null || true
+    exit 0
+fi
+
 # Parse maintenance level
 for param in $CMDLINE; do
     case "$param" in
         maintenance=1)
             echo "1" > "$MAINT_FILE"
+            echo "1" > "NO_OVERLIGHT"
             echo "Maintenance level 1 set"
             exit 0
             ;;
