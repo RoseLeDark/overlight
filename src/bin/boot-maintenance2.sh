@@ -13,6 +13,6 @@ STAGE0_MOUNT="/newroot/mnt/stage0"
 mkdir -p "$STAGE0_MOUNT"
 
 # Try to mount Stage 0 root
-if mount / "$STAGE0_MOUNT" 2>/dev/null; then
+if mount --bind / "$STAGE0_MOUNT" 2>/dev/null; then
     echo "Stage 0 mounted at $STAGE0_MOUNT"
 fi
