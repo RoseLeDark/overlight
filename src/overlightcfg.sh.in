@@ -11,7 +11,7 @@ LOG_FILE="/var/log/overlight.log"
 GUEST_DIR="%GUEST_DIR%"
 
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
 die() {
@@ -32,6 +32,7 @@ Commands:
   list-os     - List available OS images
   switch-os   - Switch to different OS
   verify      - verify available OS image. 
+  -h --help   - show this help text
 
 Options
   --all       - verify --all verify all gues OS in %GUEST_DIR%
@@ -47,7 +48,7 @@ load_config() {
     [ -f "$CONFIG_DIR/overlight.cfg" ] && . "$CONFIG_DIR/overlight.cfg"
     
     # Defaults
-    OVERLAY_ROOT="${OVERLAY_ROOT:-%GUEST_DIR%}"
+    OVERLAY_ROOT=%GUEST_DIR%
     STAGE0_ROOT="${STAGE0_ROOT:-/}"
     HOME_PARTITION="${HOME_PARTITION:-/dev/sda2}"
 }
@@ -164,10 +165,12 @@ cmd_list_os() {
                     init_line=$(grep -E '^OVERL_CMDLINE=' "$os_dir/config.cfg" | head -1)
                     if [ -n "$init_line" ]; then
                         init_cmd="${init_line#OVERL_CMDLINE=}"
+                    else
+                        init_cmd=""
                     fi
                 fi
                 echo "[OK] $os_name: Rootfs: $ROOTFS $size $modified - $init_cmd"
-
+                
                 else
                 echo "[ERROR] $os_name: Missing: $ROOTFS"
             fi
@@ -237,8 +240,10 @@ verify_single() {
         return 1
     fi
     
+    
     # Load config
     ROOTFS=$(sed -n 's/^ROOTFS=//p;q' "$os_dir/config.cfg")
+    ROOTFS="${ROOTFS:-rootfs.squashfs}"
     
     if [ ! -f "$os_dir/$ROOTFS" ]; then
         echo "[ERROR] $os_name: Rootfs missing ("$os_dir/$ROOTFS")"
@@ -253,7 +258,7 @@ verify_single() {
     fi
     
     # Calculate and compare
-    local calculated_sum=$(sha256sum "$rootfs_path" | cut -d' ' -f1)
+    local calculated_sum=$(sha256sum "$os_dir/$ROOTFS" | cut -d' ' -f1)
     
     if [ "$calculated_sum" = "$ROOTFS_SUM" ]; then
         echo "[OK] $os_name: SHA256 verified"
@@ -270,8 +275,7 @@ main() {
     local option="$2"
     
     mkdir -p "$CONFIG_DIR" "$STATE_DIR"
-    set_maintenance_level
-    
+
     case "$command" in
         boot)
             cmd_boot
@@ -291,7 +295,7 @@ main() {
         switch-os)
             cmd_switch_os "$option"
             ;;
-        help|--help|-h)
+        --help|-h)
             show_help
             ;;
         *)
