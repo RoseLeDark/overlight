@@ -38,23 +38,18 @@ install:
 	install -d $(DESTDIR)$(SYSTEMD_DIR)
 	install -m 644 systemd/overlight.service $(DESTDIR)$(SYSTEMD_DIR)/
 	
-	# Install GRUB configuration
-	install -d $(DESTDIR)$(GRUB_DIR)
-	install -m 755 etc/05_overlight $(DESTDIR)$(GRUB_DIR)/
-	
 	# Create example OS structure
-	install -d $(DESTDIR)$(GUEST_DIR)/archlinux
-	echo "archlinux" > $(DESTDIR)$(GUEST_DIR)/autolo.ad
-	install -m 644 examples/archlinux-config.cfg $(DESTDIR)$(GUEST_DIR)/archlinux/config.cfg
+	install -d $(DESTDIR)$(GUEST_DIR)/LINUX
+	install -m 644 examples/autoload > $(DESTDIR)$(GUEST_DIR)/autoload
+	install -m 644 examples/LINUX/config.cfg $(DESTDIR)$(GUEST_DIR)/LINUX/config.cfg
 	
 	@echo ""
 	@echo "Installation complete!"
 	@echo ""
 	@echo "Next steps:"
-	@echo "1. Place your OS image at $(GUEST_DIR)/archlinux/rootfs.squashfs"
-	@echo "2. Enable service: sudo systemctl daemon-reload"
-	@echo "3. Update GRUB: sudo grub-mkconfig -o /boot/grub/grub.cfg"
-	@echo "4. Reboot and select OverLight from GRUB menu"
+	@echo "1. Place your OS image at $(GUEST_DIR)/LINUX/rootfs.squashfs and set sha256 sum in config.cfg"
+	@echo "2. Enable service: sudo systemctl enable overlight-early overlight"
+	@echo "3. Reboot and enjoy OverLight"
 
 uninstall:
 	@echo "Uninstalling OverLight..."
@@ -64,7 +59,7 @@ uninstall:
 	rm -rf $(DESTDIR)$(LIB_DIR)
 	rm -rf $(DESTDIR)$(ETC_DIR)
 	rm -f $(DESTDIR)$(SYSTEMD_DIR)/overlight.service
-	rm -f $(DESTDIR)$(GRUB_DIR)/05_overlight
+	rm -f $(DESTDIR)$(SYSTEMD_DIR)/overlight-early.service
 	
 	# Don't remove guest directory as it may contain user data
 	@echo "Note: Guest directory $(GUEST_DIR) was not removed"
