@@ -83,7 +83,7 @@ for tool in install sed mkdir chmod; do
         echo "ERROR: Required tool '$tool' not found"
         exit 1
     fi
-    echo "  ✓ $tool"
+    echo "  [OK]  $tool"
 done
 
 # Check for optional tools
@@ -91,9 +91,9 @@ echo ""
 echo "Checking optional tools..."
 for tool in grub-mkconfig systemctl; do
     if command -v $tool >/dev/null 2>&1; then
-        echo "  ✓ $tool"
+        echo "  [OK]  $tool"
     else
-        echo "  ⚠ $tool (not found, some features may not work)"
+        echo "  [WARN]  $tool (not found, some features may not work)"
     fi
 done
 
@@ -123,9 +123,9 @@ sed \
     -e "s|%SYSTEMD_DIR%|$SYSTEMD_DIR|g" \
     -e "s|%GRUB_DIR%|$GRUB_DIR|g" \
     -e "s|%GUEST_DIR%|$GUEST_DIR|g" \
-    src/install-overlight.sh.in > build/install-overlight.sh
+    src/install-overlight.sh.in > build/setup.sh
 
-chmod +x build/install-overlight.sh
+chmod +x build/setup.sh
 
 # Process configuration file
 mkdir -p build/etc
@@ -133,16 +133,13 @@ sed \
     -e "s|%GUEST_DIR%|$GUEST_DIR|g" \
     src/etc/overlight.cfg.in > build/etc/overlight.cfg
 
-# Process GRUB configuration
-sed \
-    -e "s|%GUEST_DIR%|$GUEST_DIR|g" \
-    src/etc/05_overlight.in > build/etc/05_overlight
-
 # Process systemd service
 mkdir -p build/systemd
 sed \
     -e "s|%BIN_DIR%|$BIN_DIR|g" \
     src/systemd/overlight.service.in > build/systemd/overlight.service
+
+cp src/systemd/overlight-early.service.in build/systemd/overlight-early.service
 
 # Copy binary scripts
 mkdir -p build/bin
